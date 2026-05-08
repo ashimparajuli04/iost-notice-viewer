@@ -9,7 +9,7 @@ headers = {"User-Agent": "Mozilla/5.0"}
 all_notices = []
 url = base_url  # Start from the first page
 
-while url:
+for _ in range(2):
     print(f"Scraping: {url}")
     response = requests.get(url, headers=headers, verify= False)
     soup = BeautifulSoup(response.text, "html.parser")
@@ -20,7 +20,8 @@ while url:
         date = notice.find("span", class_="nep_date").text.strip()
         title = notice.find("h5").text.strip()
         link = notice.find("a")["href"]
-        all_notices.append({"date": date, "title": title, "link": link})
+        notice_number = int(link.split("/")[-1])
+        all_notices.append({"date": date, "title": title, "link": link, "notice_number": notice_number})
 
     # Find the "Next" button link
     next_button = soup.find("a", rel="next")

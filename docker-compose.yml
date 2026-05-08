@@ -1,8 +1,27 @@
 services:
   api:
     build: .
+    depends_on:
+      - db
     ports:
       - "8000:8000"
     volumes:
       - .:/app
+      - /app/.venv
     command: uv run uvicorn main:app --host 0.0.0.0 --reload
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/notices
+      
+  db:
+      image: postgres:18
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: notices
+      ports:
+        - "5432:5432"
+      volumes:
+        - pgdata:/var/lib/postgresql
+  
+volumes:
+  pgdata:
