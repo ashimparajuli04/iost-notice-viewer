@@ -1,15 +1,89 @@
+import requests
+from bs4 import BeautifulSoup
+import urllib3
 from notices.models.notice import Notice
+from notices.schemas.notice import NoticeCreate
+from datetime import datetime, timezone
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def create_notice(session, data: Notice):
+def scrape_notices_initial() -> list[NoticeCreate]:
+    base_url = "https://iost.tu.edu.np/notices"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    all_notices = []
+    url = base_url
 
-    category = Notice(
-        **data.model_dump(),
-    )
+    while url:
+        print(f"Scraping: {url}")
+        response = requests.get(url, headers=headers, verify=False)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-    session.add(category)
-    session.commit()
-    session.refresh(category)
+        for notice in soup.find_all("div", class_="recent-post-wrapper"):
+            
+            date = notice.find("span", class_="nep_date").text.strip()
+            title = notice.find("h5").text.strip()
+            link = notice.find("a")["href"]
+            notice_number = int(link.split("/")[-1])
+            print(f"scraping notice {notice_number}")
 
-    return category
+            all_notices.append(NoticeCreate(
+                date=parse_notice_date(date),
+                title=title,
+                link=link,
+                notice_number=notice_number,
+            ))
+
+        next_button = soup.find("a", rel="next")
+        url = next_button["href"] if next_button else None
+
+    print(f"\nTotal notices scraped: {len(all_notices)}")
+    return all_notices
+
+def scrape_notices() -> list[NoticeCreate]:
+    base_url = "https://iost.tu.edu.np/notices"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    all_notices = []
+    url = base_url
+
+    latest_notice_number = session.exec(
+        select(func.max(Notice.notice_number))
+    ).one()
+
+    print(f"Scraping: {url}")
+    response = requests.get(url, headers=headers, verify=False)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    for notice in soup.find_all("div", class_="recent-post-wrapper"):
+        
+        date = notice.find("span", class_="nep_date").text.strip()
+        title = notice.find("h5").text.strip()
+        link = notice.find("a")["href"]
+        notice_number = int(link.split("/")[-1])
+        print(f"scraping notice {notice_number}")
     
+    
+
+
+def create_notice(session, data: NoticeCreate) -> Notice:
+    notice = Notice(**data.model_dump())
+    session.add(notice)
+    session.commit()
+    session.refresh(notice)
+    return notice
+
+
+def seed_notices(session):
+    if is_notice_table_empty
+        notices = scrape_notices_initial()
+    else:
+        notices = scrape_notices()
+    for data in notices:
+        create_notice(session, data)
+    print(f"Inserted {len(notices)} notices into the database.")
+
+def parse_notice_date(date_str: str) -> datetime:
+    """Convert scraped date string '2026-04-29' to timezone-aware datetime."""
+    return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+
+def is_notice_table_empty(session: Session) -> bool:
+    return session.exec(select(Notice).limit(1)).first() is None
